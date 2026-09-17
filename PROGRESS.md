@@ -276,6 +276,27 @@ frontend/   Static website (index.html, style.css, app.js, jobs.json written by 
 - `run_many()` lets one feed crawl several listings. If some fail, the rest are kept
   and the run is flagged partial.
 
+## Step 8 — RSS feeds
+
+**Built**
+- `backend/scrapers/rss.py` (uses `feedparser`, robots.txt checked):
+  - **WeWorkRemotely** — `https://weworkremotely.com/remote-jobs.rss`. "Company: Title"
+    is split into company and title; `region`, `skills`, `type` are used; `expires_at`
+    becomes `deadline`.
+  - **Jobspresso** — `https://jobspresso.co/jobs/feed/`. Company and location are parsed
+    out of the feed's `author` field.
+  - **Working Nomads** — `https://www.workingnomads.com/api/exposed_jobs/` (see below).
+- Verified: WeWorkRemotely 82, Jobspresso 13, Working Nomads 52 jobs.
+
+**Decisions not in the original plan**
+- **Working Nomads no longer publishes RSS** (`/jobsrss`, `/jobs.rss`, `?format=rss` all
+  return 404 or HTML). The syndication feed its own pages link to is a public JSON list,
+  so that is used instead, still in the "rss" group.
+- **Jobspresso:** its robots.txt disallows every URL containing `?`, so the usual
+  WordPress `?post_type=job_listing` feed is off-limits; `/jobs/feed/` is allowed and
+  returns the same jobs. Its `Crawl-delay: 3` is honoured.
+- All three are "latest N" feeds, so they use the 21-day staleness expiry rule.
+
 <!-- NEXT-STEP -->
 
 ---
@@ -293,8 +314,8 @@ _Updated after every step. ✅ done · 🔄 in progress · ⏳ not started._
 | 5 | Skill filtering | ✅ |
 | 6 | Expiry logic | ✅ |
 | 7 | India boards (Internshala, Shine, Freshersworld, Naukri, Foundit) | ✅ (Naukri untested, Foundit blocked) |
-| 8 | RSS feeds (WeWorkRemotely, Jobspresso, Working Nomads) | 🔄 |
-| 9 | `jobs.json` exporter | ⏳ |
+| 8 | RSS feeds (WeWorkRemotely, Jobspresso, Working Nomads) | ✅ (Working Nomads via its JSON feed) |
+| 9 | `jobs.json` exporter | 🔄 |
 | 10 | Website (`frontend/`) | ⏳ |
 | 11 | GitHub Actions workflow | ⏳ |
 | 12 | Final review + README | ⏳ |
