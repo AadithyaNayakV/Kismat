@@ -196,6 +196,35 @@ frontend/   Static website (index.html, style.css, app.js, jobs.json written by 
 - **Connection retry:** large responses (OpenAI's 800-job board) occasionally drop
   mid-download, so `HttpClient` now retries those twice.
 
+## Step 6 — Expiry logic
+
+**Built**
+- `backend/expiry/checker.py`, run by `main.py` after every scrape. Jobs are **never
+  deleted**; they only get `status = 'expired'`. Three rules:
+  - **A. Deadline** — `deadline` earlier than today (UTC) → expired.
+  - **B. Disappearance** (ATS boards) — missing from the last **2 successful runs of
+    its own feed** → expired.
+  - **C. Staleness** (all other sources, and a fallback for ATS) — not seen for
+    **21 days** → expired.
+- A job that shows up again is set back to `active` automatically.
+- Verified with an in-memory test covering deadline expiry, expiry after 2 missed runs, a failed
+  run *not* counting as a miss, reactivation, and staleness. It also ran cleanly on the real DB.
+
+**Decisions not in the original plan**
+- **"2 scrape cycles" is counted in runs, not hours.** The implementation takes the start
+  time of the feed's 2nd-most-recent *successful* run from `scrape_runs` and expires
+  that feed's jobs whose `last_seen_at` is earlier. Failed, partial, throttled, or
+  zero-result runs don't count, so a site outage or a broken scraper can't mass-expire
+  jobs, and GitHub's cron delays don't matter either.
+- **Why only ATS feeds use rule B:** APIs like Himalayas (99k jobs, we read the newest
+  100), RSS feeds, and search pages only show a *window* of recent jobs. A job dropping
+  out of the window is usually still open, so treating that as "removed" would wrongly
+  expire most jobs within hours. Those sources use rule C instead
+  (`settings.WINDOW_FEED_STALE_DAYS = 21`). Feeds opt in to rule B with
+  `Feed(complete=True)`.
+- Rule C also covers jobs from companies you delete from `companies.py` (they stop
+  being scraped and expire 21 days later).
+
 <!-- NEXT-STEP -->
 
 ---

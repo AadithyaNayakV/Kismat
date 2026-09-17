@@ -22,6 +22,7 @@ from pathlib import Path
 
 from db.db import DB_PATH, connect, count_jobs, init_db, last_success_at, log_run, upsert_jobs
 from db.models import utc_now_iso
+from expiry import checker as expiry
 from filters import skill_matcher
 from notifier import telegram
 from scrapers.base import Feed, PartialResult
@@ -167,6 +168,11 @@ def main(argv=None) -> int:
 
     results = [run_feed(conn, f, run_id, args.ignore_throttle) for f in feeds]
     print_summary(results)
+
+    complete = {f.name for f in feeds if f.complete}
+    succeeded = [r["feed"] for r in results
+                 if r["feed"] in complete and not r["skipped"] and not r["error"] and r["found"] > 0]
+    expiry.run(conn, succeeded)
 
     if was_empty and count_jobs(conn) > 0:
         # First ever run: load everything silently instead of sending thousands of alerts.
