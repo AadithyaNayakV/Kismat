@@ -170,6 +170,32 @@ frontend/   Static website (index.html, style.css, app.js, jobs.json written by 
 - `lever` and `ashby` responses don't include the company's display name, so the name
   is derived from the slug (`hevodata` → `Hevodata`).
 
+## Step 5 — Skill filtering
+
+**Built**
+- `backend/filters/skills_config.py` — **`MY_SKILLS`** (edit this) and optional
+  `SKILL_ALIASES` (e.g. `"sql": ["mysql", "postgresql", ...]`).
+- `backend/filters/skill_matcher.py` — `match_skills()`, `tag_job()`, `retag_all()`.
+  Every scraped job gets `skills_tags` (e.g. `python,sql`) computed from its **full**
+  title + source tags + description, before truncation.
+- The notifier only alerts for jobs with at least one tag, or for every job when `MY_SKILLS = []`.
+- Verified: after a full run, 2,985 of 10,046 jobs matched the starter skills.
+
+**Decisions not in the original plan**
+- **Starter skills** are the example list from plan §6 (`python, javascript, react,
+  sql, django, aws`). **Replace them with your own.**
+- **Matching is whole-word and case-insensitive:** `java` ≠ `javascript`, `go` ≠
+  `google`, `react` ≠ `reactive`. Terms with symbols (`c++`, `c#`, `.net`, `node.js`)
+  work. A space or hyphen inside a term matches either (`full stack` = `full-stack`).
+- **Aliases map to the main skill name**, so `PostgreSQL` is tagged `sql`.
+- **Automatic re-tag when you edit the skill list:** a fingerprint of
+  `MY_SKILLS` + `SKILL_ALIASES` is stored in the `meta` table. When it changes, the
+  next run re-tags every stored job *before* scraping (from the stored, truncated text),
+  and then fresh scrapes re-tag active jobs from full text. Old jobs that newly match
+  are not alerted unless they were posted within the 7-day notify window.
+- **Connection retry:** large responses (OpenAI's 800-job board) occasionally drop
+  mid-download, so `HttpClient` now retries those twice.
+
 <!-- NEXT-STEP -->
 
 ---

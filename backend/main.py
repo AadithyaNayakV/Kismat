@@ -7,7 +7,7 @@
     python main.py --no-notify          # scrape + export, no Telegram
     python main.py --test-telegram      # send one test message and exit
 
-Order: scrape (each feed isolated) -> normalize -> tag skills -> upsert/dedupe
+Order: re-tag if skills changed -> scrape (each feed isolated) -> normalize -> tag skills -> upsert/dedupe
        -> expire -> notify -> export jobs.json
 """
 from __future__ import annotations
@@ -162,6 +162,8 @@ def main(argv=None) -> int:
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     was_empty = count_jobs(conn) == 0
     log.info("Run %s starting: %d feeds, DB=%s", run_id, len(feeds), args.db)
+    # Before scraping, so freshly scraped jobs keep tags computed from their full text.
+    skill_matcher.retag_all(conn)
 
     results = [run_feed(conn, f, run_id, args.ignore_throttle) for f in feeds]
     print_summary(results)

@@ -132,11 +132,20 @@ class HttpClient:
         headers = self._default_headers()
         headers.update(kwargs.pop("headers", None) or {})
         kwargs.setdefault("timeout", settings.HTTP_TIMEOUT)
-        self._wait()
-        try:
-            resp = self.session.request(method, url, headers=headers, **kwargs)
-        finally:
-            self._last_request = time.monotonic()
+        # urllib3's Retry covers status codes and connect errors; this loop also covers
+        # connections dropped mid-body (large JSON responses).
+        for attempt in range(3):
+            self._wait()
+            try:
+                resp = self.session.request(method, url, headers=headers, **kwargs)
+                resp.content  # force the body download inside the retry loop
+                break
+            except (requests.exceptions.ChunkedEncodingError, requests.exceptions.ConnectionError):
+                if attempt == 2:
+                    raise
+                time.sleep(2 * (attempt + 1))
+            finally:
+                self._last_request = time.monotonic()
         resp.raise_for_status()
         return resp
 
