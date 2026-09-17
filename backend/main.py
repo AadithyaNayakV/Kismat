@@ -4,6 +4,7 @@
     python main.py --list               # show all feeds
     python main.py --only remoteok      # just one source (prefix match: --only greenhouse)
     python main.py --skip-group india   # everything except the India scrapers
+    python main.py --skip naukri,foundit
     python main.py --no-notify          # scrape + export, no Telegram
     python main.py --test-telegram      # send one test message and exit
 
@@ -121,6 +122,7 @@ def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Job notifier pipeline")
     p.add_argument("--list", action="store_true", help="list feeds and exit")
     p.add_argument("--only", help="comma-separated feed names or prefixes")
+    p.add_argument("--skip", help="comma-separated feed names or prefixes to leave out")
     p.add_argument("--group", help="comma-separated groups to run (api,ats,rss,india)")
     p.add_argument("--skip-group", help="comma-separated groups to skip")
     p.add_argument("--no-notify", action="store_true", help="don't send Telegram alerts")
@@ -147,7 +149,8 @@ def main(argv=None) -> int:
         log.info("Telegram test %s", "sent" if ok else "FAILED")
         return 0 if ok else 1
 
-    feeds = select_feeds(all_feeds(), _split(args.only), _split(args.group), _split(args.skip_group))
+    feeds = select_feeds(all_feeds(), _split(args.only), _split(args.group), _split(args.skip_group),
+                         _split(args.skip))
     if args.list:
         for f in feeds:
             extra = []
@@ -191,6 +194,10 @@ def main(argv=None) -> int:
             log.exception("Export to jobs.json failed")
 
     conn.close()
+    ran = [r for r in results if not r["skipped"]]
+    if ran and all(r["error"] and not r["found"] for r in ran):
+        log.error("Run %s finished, but every feed failed (network problem?)", run_id)
+        return 1
     log.info("Run %s finished", run_id)
     return 0
 

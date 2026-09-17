@@ -1,0 +1,99 @@
+# Runs the whole pipeline every 2 hours, commits the updated data, then redeploys the site.
+name: Job Scraper
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"      # every 2 hours (UTC). GitHub may start scheduled runs a few minutes late.
+  workflow_dispatch:            # "Run workflow" button in the Actions tab
+    inputs:
+      only:
+        description: "Only these feeds (comma-separated names/prefixes, e.g. remoteok,greenhouse). Empty = all."
+        required: false
+        default: ""
+      notify:
+        description: "Send Telegram alerts"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # push jobs.db + jobs.json
+  pages: write      # deploy GitHub Pages
+  id-token: write   # required by actions/deploy-pages
+
+concurrency:
+  group: job-scraper          # never run two pipelines at once (they'd fight over jobs.db)
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Install Playwright Chromium (Naukri / Foundit)
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run pipeline (scrape → dedupe → expire → tag → notify → export)
+        working-directory: backend
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+          JOOBLE_KEY: ${{ secrets.JOOBLE_KEY }}
+          FINDWORK_TOKEN: ${{ secrets.FINDWORK_TOKEN }}
+          MUSE_API_KEY: ${{ secrets.MUSE_API_KEY }}
+          # Optional repository *variables* (Settings → Secrets and variables → Variables)
+          SITE_URL: ${{ vars.SITE_URL }}
+          ADZUNA_COUNTRY: ${{ vars.ADZUNA_COUNTRY || 'in' }}
+          JOOBLE_LOCATION: ${{ vars.JOOBLE_LOCATION || 'India' }}
+          ONLY: ${{ github.event.inputs.only }}
+          NOTIFY: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.notify == 'true' }}
+        run: |
+          args=()
+          if [ -n "$ONLY" ]; then args+=(--only "$ONLY"); fi
+          if [ "$NOTIFY" != "true" ]; then args+=(--no-notify); fi
+          python main.py "${args[@]}"
+
+      - name: Upload run log
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-log-${{ github.run_id }}
+          path: backend/logs/run.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Commit updated data
+        if: ${{ !cancelled() }}
+        run: |
+          git config user.name "job-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/db/jobs.db frontend/jobs.json
+          if git diff --cached --quiet; then
+            echo "No data changes"
+            exit 0
+          fi
+          git commit -m "Auto-update jobs $(date -u '+%Y-%m-%d %H:%M UTC')"
+          # Someone may have pushed code meanwhile: rebase and retry a few times.
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push && exit 0
+            echo "Push failed (attempt $i), retrying..."
+            sleep $((i * 5))
+          done
+          exit 1
+
+  deploy:
+    needs: scrape
+    if: ${{ !cancelled() }}
+    uses: ./.github/workflows/pages.yml

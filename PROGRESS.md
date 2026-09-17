@@ -357,6 +357,43 @@ frontend/   Static website (index.html, style.css, app.js, jobs.json written by 
   use `python -m http.server` inside `frontend/` to preview locally.
 - Small backend fix: "SDE", "SWE", "MERN" now count as tech titles.
 
+## Step 11 — GitHub Actions automation
+
+**Built**
+- `.github/workflows/scrape.yml` — **every 2 hours** (`cron: "0 */2 * * *"`) plus a manual
+  "Run workflow" button (optional inputs: only certain feeds; send alerts yes/no). Steps:
+  checkout → Python 3.11 (pip cache) → `pip install -r backend/requirements.txt` →
+  `python -m playwright install --with-deps chromium` → `python main.py` (secrets
+  passed as env vars) → upload `run.log` as an artifact (kept 7 days) → commit and push
+  `backend/db/jobs.db` + `frontend/jobs.json` → deploy the website.
+- `.github/workflows/pages.yml` — publishes `frontend/` to GitHub Pages. It is called by
+  the scraper after each run, runs on pushes that change `frontend/**`, and can be run
+  manually.
+- `main.py` gained `--skip` (e.g. `--skip naukri,foundit`) and exits with an error code when
+  *every* feed failed, so a network outage shows as a red run.
+- Verified: both YAML files parse. A full local run in CI mode
+  (`--skip naukri --ignore-throttle`) took 5 min 50 s: 65 feeds run, 64 OK (Foundit blocked),
+  10,655 jobs seen, 10,814 active, 1 expired by disappearance, export 5.4 MB.
+
+**Decisions not in the original plan**
+- **The website deploys through GitHub Actions** (`actions/deploy-pages`), not
+  "deploy from a branch". Branch-based Pages can only publish the repo root or `/docs`, and
+  the site lives in `frontend/`. Commits pushed by a workflow don't trigger other
+  workflows, which is why the scraper calls the deploy workflow directly.
+- **`concurrency: job-scraper`** ensures two runs never overlap and fight over `jobs.db`.
+- **Push retries:** if you pushed code during a run, the bot rebases and retries up to 3 times.
+- **Data is committed even if the pipeline step fails part-way** (`if: !cancelled()`),
+  since each feed's data is saved to the DB as it completes.
+- **Optional repo *variables*** (not secrets): `SITE_URL` (linked in Telegram summaries),
+  `ADZUNA_COUNTRY` (default `in`), `JOOBLE_LOCATION` (default `India`).
+- **Bot identity:** commits are authored as `job-bot` with GitHub's Actions bot e-mail.
+- **Keep the repo public.** GitHub Actions minutes are unlimited for public repos; at
+  ~6 min × 12 runs/day ≈ 2,200 min/month, a private repo would exceed the free
+  2,000 min/month. GitHub Pages is also free only for public repos on the Free plan.
+- **60-day rule:** GitHub disables scheduled workflows in repos with no activity for
+  60 days. The bot's own commits normally count as activity; if the schedule ever shows
+  as disabled, re-enable it in the Actions tab.
+
 <!-- NEXT-STEP -->
 
 ---
@@ -377,8 +414,8 @@ _Updated after every step. ✅ done · 🔄 in progress · ⏳ not started._
 | 8 | RSS feeds (WeWorkRemotely, Jobspresso, Working Nomads) | ✅ (Working Nomads via its JSON feed) |
 | 9 | `jobs.json` exporter | ✅ |
 | 10 | Website (`frontend/`) | ✅ |
-| 11 | GitHub Actions workflow | 🔄 |
-| 12 | Final review + README | ⏳ |
+| 11 | GitHub Actions workflow | ✅ |
+| 12 | Final review + README | 🔄 |
 
 **Known limitations / ideas for later** (not required by the build prompt)
 - Naukri needs a real-world check on GitHub Actions; Foundit is blocked by bot protection.

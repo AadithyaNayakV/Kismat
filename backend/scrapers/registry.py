@@ -32,11 +32,17 @@ def all_feeds() -> list[Feed]:
 
 
 def select_feeds(feeds: list[Feed], only: list[str] | None = None,
-                 groups: list[str] | None = None, skip_groups: list[str] | None = None) -> list[Feed]:
-    """`only` matches a feed name exactly or by prefix before ':' (e.g. 'greenhouse')."""
+                 groups: list[str] | None = None, skip_groups: list[str] | None = None,
+                 skip: list[str] | None = None) -> list[Feed]:
+    """`only` / `skip` match a feed name exactly or by prefix before ':' (e.g. 'greenhouse')."""
+    def matches(f: Feed, names: list[str]) -> bool:
+        return any(f.name == n or f.name.split(":")[0] == n for n in names)
+
     out = []
     for f in feeds:
-        if only and not any(f.name == o or f.name.split(":")[0] == o for o in only):
+        if only and not matches(f, only):
+            continue
+        if skip and matches(f, skip):
             continue
         if groups and f.group not in groups:
             continue
