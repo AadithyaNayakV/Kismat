@@ -1,0 +1,32 @@
+# Secrets — never commit
+.env
+.env.*
+*.env
+secrets.*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# Node (not used today, guard anyway)
+node_modules/
+
+# Local logs / scratch
+*.log
+backend/logs/
+
+# SQLite temp files (the main jobs.db IS committed)
+*.db-journal
+*.db-wal
+*.db-shm
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
