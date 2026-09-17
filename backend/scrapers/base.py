@@ -6,7 +6,6 @@ from __future__ import annotations
 import logging
 import random
 import time
-import urllib.robotparser
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 from urllib.parse import urlsplit
@@ -17,6 +16,7 @@ from urllib3.util.retry import Retry
 
 from config import settings
 from db.models import Job
+from scrapers.robots import RobotsRules
 
 log = logging.getLogger("scrapers")
 
@@ -76,7 +76,7 @@ class HttpClient:
         self.delay_range = delay_range
         self.respect_robots = respect_robots
         self._last_request = 0.0
-        self._robots: dict[str, urllib.robotparser.RobotFileParser] = {}
+        self._robots: dict[str, RobotsRules] = {}
         self.session = requests.Session()
         retry = Retry(
             total=3, backoff_factor=1.5,
@@ -103,28 +103,28 @@ class HttpClient:
             time.sleep(target - elapsed)
 
     def allowed(self, url: str) -> bool:
-        """robots.txt check for the generic '*' agent. Unreachable robots.txt
-        (network error / 5xx / 401 / 403) is treated as 'disallow' to stay safe;
-        a 404 means no rules, so everything is allowed."""
+        """robots.txt check using the generic '*' rules (our requests carry a normal
+        browser User-Agent). A robots.txt that can't be fetched (network error, 5xx,
+        401, 403) is treated as 'disallow everything' to stay safe. A 404 means no
+        rules, so everything is allowed."""
         parts = urlsplit(url)
         base = f"{parts.scheme}://{parts.netloc}"
-        rp = self._robots.get(base)
-        if rp is None:
-            rp = urllib.robotparser.RobotFileParser()
+        rules = self._robots.get(base)
+        if rules is None:
             try:
                 resp = self.session.get(f"{base}/robots.txt", headers=self._default_headers(),
                                         timeout=settings.HTTP_TIMEOUT)
                 if resp.status_code == 404:
-                    rp.parse([])
+                    rules = RobotsRules(allow_all=True)
                 elif resp.ok:
-                    rp.parse(resp.text.splitlines())
+                    rules = RobotsRules(resp.text)
                 else:
-                    rp.disallow_all = True
+                    rules = RobotsRules(disallow_all=True)
             except requests.RequestException as exc:
                 log.warning("robots.txt fetch failed for %s: %s", base, exc)
-                rp.disallow_all = True
-            self._robots[base] = rp
-        return rp.can_fetch("*", url)
+                rules = RobotsRules(disallow_all=True)
+            self._robots[base] = rules
+        return rules.can_fetch("*", url)
 
     def request(self, method: str, url: str, **kwargs) -> requests.Response:
         if self.respect_robots and not self.allowed(url):

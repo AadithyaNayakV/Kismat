@@ -225,7 +225,89 @@ frontend/   Static website (index.html, style.css, app.js, jobs.json written by 
 - Rule C also covers jobs from companies you delete from `companies.py` (they stop
   being scraped and expire 21 days later).
 
+## Step 7 — India-focused scraping sources
+
+**Built**
+- `backend/scrapers/india_boards.py`:
+  | Feed | How | Status when built |
+  |---|---|---|
+  | `internshala:internships`, `internshala:jobs` | HTML + BeautifulSoup, `/page-N/` pagination | ✅ 225 + 139 jobs |
+  | `shine` | job list embedded as JSON (`__NEXT_DATA__`), `-N` pagination | ✅ 117 jobs |
+  | `freshersworld` | HTML + BeautifulSoup, 5 category pages | ✅ 77 jobs |
+  | `naukri` | Playwright (headless Chromium), `-N` pagination | ⚠️ written but **not test-run** (see below) |
+  | `foundit` | Playwright | ❌ site answers "403 Access Denied" (bot protection) |
+- `backend/scrapers/robots.py` — a robots.txt parser that understands `*` and `$`
+  wildcards. Python's built-in parser ignores them, and Internshala, Shine and Freshersworld
+  all rely on them. `HttpClient(respect_robots=True)` checks every URL before fetching it.
+- A `Browser` helper (Playwright) that also aborts any in-page request to a
+  robots-disallowed path on the target site, and skips images, fonts and media.
+- Politeness: 2–5 s random delay between requests, a random realistic User-Agent per
+  request/browser context, and India feeds run **every 4 hours** rather than every 2.
+
+**Decisions not in the original plan**
+- **Naukri was not test-run.** naukri.com's robots.txt explicitly blocks AI-assistant
+  agents (`Claude-User`, `ClaudeBot`, …) from all pages, so the assistant that built
+  this project did not load them. The scraper follows Naukri's known markup
+  (`.srp-jobtuple-wrapper`, `a.title`, `a.comp-name`, …) and follows the
+  generic `User-agent: *` rules, which allow `/python-jobs`. Naukri is also known for
+  strong bot protection, so it may fail from GitHub's servers. **Check its line in the
+  run summary after the first Actions run.**
+- **Foundit is blocked** by bot protection for automated browsers. Its page has no
+  server-rendered job data, and its data API (`/middleware/`) is disallowed by
+  robots.txt. The feed stays in the list (it might work from another network), fails
+  cleanly with `SiteBlocked`, and costs ~10 s per run.
+- **No bot-protection workarounds** (no stealth plugins, proxies, or CAPTCHA
+  solving), on purpose.
+- **Freshersworld pagination isn't possible within robots.txt:** `?page=N` returns
+  page 1 again, and its "load more" endpoints (`/jobs/getjobs`, `*ajax_*`,
+  `/jobs/jobsearch/`) are disallowed. Instead the scraper reads 5 category pages
+  (IT/software, internships, analytics, core technical, BSc/BCA/BBM), 20 jobs each.
+- **Search terms:** Shine/Naukri/Foundit use `settings.INDIA_QUERIES`. Internshala
+  uses its own category slugs (`INTERNSHALA_INTERNSHIPS`, `INTERNSHALA_JOBS` at the
+  top of `india_boards.py`), and Freshersworld uses `FRESHERSWORLD_CATEGORIES`.
+- **Deadlines:** Shine provides one (`jExpDate`). Internshala shows "Apply by" only on
+  detail pages. Fetching one detail page per job (hundreds of extra slow requests)
+  was judged too heavy, so Internshala jobs rely on the 21-day staleness rule.
+- **Privacy:** Shine's embedded data includes recruiter e-mail/phone; these are
+  never read or stored.
+- **Bug fixed along the way:** "fresher" no longer counts as "internship" in
+  `job_type`, and Freshersworld jobs no longer inherit "tech" from their category
+  name. Existing rows were corrected.
+- `run_many()` lets one feed crawl several listings. If some fail, the rest are kept
+  and the run is flagged partial.
+
 <!-- NEXT-STEP -->
+
+---
+
+## Remaining work / status board
+
+_Updated after every step. ✅ done · 🔄 in progress · ⏳ not started._
+
+| # | Step | Status |
+|---|---|---|
+| 1 | Repo scaffold + DB schema | ✅ |
+| 2 | RemoteOK → DB → Telegram pipeline | ✅ |
+| 3 | Remaining free APIs (ApiPuller) | ✅ |
+| 4 | ATS company loop + 51 slugs | ✅ |
+| 5 | Skill filtering | ✅ |
+| 6 | Expiry logic | ✅ |
+| 7 | India boards (Internshala, Shine, Freshersworld, Naukri, Foundit) | ✅ (Naukri untested, Foundit blocked) |
+| 8 | RSS feeds (WeWorkRemotely, Jobspresso, Working Nomads) | 🔄 |
+| 9 | `jobs.json` exporter | ⏳ |
+| 10 | Website (`frontend/`) | ⏳ |
+| 11 | GitHub Actions workflow | ⏳ |
+| 12 | Final review + README | ⏳ |
+
+**Known limitations / ideas for later** (not required by the build prompt)
+- Naukri needs a real-world check on GitHub Actions; Foundit is blocked by bot protection.
+- Sources in the plan that were not built: Reed, Careerjet, USAJobs (APIs); Indeed
+  India, TimesJobs, Hirist, CutShort, Instahyre, FreeJobAlert, Sarkari Result
+  (scraping); Workday, Recruitee, BambooHR, JazzHR (ATS).
+- Plan phase 2: resume matching with `sentence-transformers`, Telegram bot commands
+  (`/latest`, `/skills`), trend analytics.
+- SmartRecruiters/Breezy listings have no description, so skill tags there come from
+  the title only.
 
 ---
 

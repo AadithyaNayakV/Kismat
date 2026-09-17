@@ -33,7 +33,7 @@ TECH_KEYWORDS = [
     "dev", "developers", "engineers", "c++", "c#", "sql", "typescript", "kotlin", "swift",
     "data science", "data", "software development", "information technology",
 ]
-INTERN_KEYWORDS = ["intern", "internship", "trainee", "apprentice", "apprenticeship", "fresher"]
+INTERN_KEYWORDS = ["intern", "internship", "internships", "apprentice", "apprenticeship"]
 REMOTE_KEYWORDS = ["remote", "work from home", "wfh", "anywhere", "distributed"]
 
 
