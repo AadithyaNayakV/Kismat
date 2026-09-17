@@ -90,6 +90,45 @@ frontend/   Static website (index.html, style.css, app.js, jobs.json written by 
   environment variables.
 - The console output is forced to UTF-8 so emoji don't crash on Windows terminals.
 
+## Step 3 — Remaining free API sources
+
+**Built**
+- `backend/scrapers/apis.py` rewritten around one reusable class, **`ApiPuller`**.
+  A source is defined by three small functions: a *request generator* (yields
+  request dicts and receives each JSON response, so it can follow cursors or next links
+  or stop early), an *items extractor*, and a *mapper* that calls the shared normalizer.
+  Paging, polite delays and error handling are shared.
+- Sources: RemoteOK, **Remotive, Himalayas, Jobicy, Arbeitnow, The Muse** (no key),
+  **Jooble, Adzuna, Findwork** (free key/token; the feed is skipped automatically
+  when its env var is missing).
+- Verified live: RemoteOK 99, Remotive 15, Himalayas 100, Jobicy 100, Arbeitnow 500,
+  The Muse 62 jobs. The key-based mappers were checked against sample payloads
+  (they can't be exercised until keys exist).
+
+**Decisions not in the original plan**
+- **Throttling per feed** (`Feed.min_interval_hours`): Remotive every 6 h (their
+  terms ask for at most ~4 calls/day), Adzuna every 6 h (keeps well inside the free
+  quota), Jooble every 4 h. The rest run every cycle.
+- **Partial failures:** if page 1 fails, the feed fails. If a later page fails, the
+  jobs already fetched are saved but the run is flagged `partial:` in `scrape_runs`,
+  so expiry won't treat the missing jobs as removed.
+- **Max job age** (`settings.MAX_JOB_AGE_DAYS = 60`): jobs with a `posted_date`
+  older than this are dropped by the pipeline. Needed because The Muse returns
+  years-old postings and does not sort by date. ATS feeds opt out (Step 4).
+- **The Muse** is limited to `India` and `Flexible / Remote` locations
+  (`MUSE_LOCATIONS`), 5 pages. `MUSE_API_KEY` is optional (only raises its rate limit).
+- **Search terms** for keyword APIs (Adzuna, Jooble) are in
+  `settings.SEARCH_QUERIES`. Adzuna country defaults to India (`ADZUNA_COUNTRY=in`,
+  overridable by env var); Jooble location defaults to `India` (`JOOBLE_LOCATION`).
+- **Arbeitnow** is fetched 2 pages (500 jobs). It is mostly European/German listings.
+- **Himalayas** uses its new cursor pagination; its `expiryDate` is stored as the
+  job's `deadline`.
+- **Attribution:** Remotive, Jobicy and RemoteOK terms require linking to their job
+  page and naming them. `apply_link` is the URL they provide, and the website shows
+  the source name on every card.
+- The plan's optional sources Reed, Careerjet and USAJobs were **not** built (the
+  build prompt didn't list them). `ApiPuller` makes each one roughly a 30-line addition.
+
 <!-- NEXT-STEP -->
 
 ---
@@ -115,3 +154,15 @@ _Kept up to date as steps are completed._
    python main.py --test-telegram
    ```
    Never commit the token. `.env` files are git-ignored if you prefer to keep them in one.
+
+### Free API keys (optional — each source is skipped until its key exists)
+None of these ask for a credit card.
+- **Adzuna** — sign up at <https://developer.adzuna.com/> → "Dashboard" shows an
+  **Application ID** and **Application Key** → secrets `ADZUNA_APP_ID`, `ADZUNA_APP_KEY`.
+  Optional variable `ADZUNA_COUNTRY` (default `in`).
+- **Jooble** — request a key at <https://jooble.org/api/about> (form; the key is
+  emailed) → secret `JOOBLE_KEY`.
+- **Findwork** — create an account at <https://findwork.dev/> and copy the API token
+  from <https://findwork.dev/developers/> → secret `FINDWORK_TOKEN`.
+- **The Muse** (optional, works without) — <https://www.themuse.com/developers/api/v2>
+  → secret `MUSE_API_KEY`.

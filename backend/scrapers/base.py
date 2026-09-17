@@ -62,6 +62,11 @@ class Feed:
     fetch: Callable[[], list[Job]]
     min_interval_hours: float = 0            # throttle sources that ask for infrequent polling
     requires_env: tuple[str, ...] = field(default_factory=tuple)
+    # True when one fetch returns *every* open job of the source (ATS boards). Only then
+    # does "missing from the last runs" mean "removed". See expiry/checker.py.
+    complete: bool = False
+    # Drop jobs posted longer ago than this (None = keep all, e.g. long-open ATS roles).
+    max_age_days: Optional[int] = settings.MAX_JOB_AGE_DAYS
 
 
 class HttpClient:

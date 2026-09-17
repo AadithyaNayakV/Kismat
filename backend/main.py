@@ -17,7 +17,7 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from db.db import DB_PATH, connect, count_jobs, init_db, last_success_at, log_run, upsert_jobs
@@ -76,8 +76,15 @@ def run_feed(conn, feed: Feed, run_id: str, ignore_throttle: bool) -> dict:
         error = f"{type(exc).__name__}: {exc}"[:500]
         log.warning("[%s] failed: %s", feed.name, error, exc_info=log.isEnabledFor(logging.DEBUG))
 
+    cutoff = None
+    if feed.max_age_days:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=feed.max_age_days)).isoformat()
     unique = {}
+    stale = 0
     for job in jobs:
+        if cutoff and job.posted_date and job.posted_date < cutoff:
+            stale += 1
+            continue
         job.feed = feed.name
         skill_matcher.tag_job(job)
         unique[job.job_id] = job
@@ -89,7 +96,8 @@ def run_feed(conn, feed: Feed, run_id: str, ignore_throttle: bool) -> dict:
 
     log_run(conn, run_id, feed.name, started_at, len(unique), new, error)
     result.update(found=len(unique), new=new, error=error)
-    log.info("[%s] found=%d new=%d%s (%.1fs)", feed.name, len(unique), new,
+    log.info("[%s] found=%d new=%d%s%s (%.1fs)", feed.name, len(unique), new,
+             f" stale_dropped={stale}" if stale else "",
              f" error={error}" if error else "", time.monotonic() - t0)
     return result
 

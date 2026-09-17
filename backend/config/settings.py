@@ -9,6 +9,10 @@ import os
 SCRAPE_INTERVAL_HOURS = 2          # must match the cron in .github/workflows/scrape.yml
 EXPIRY_MISSED_RUNS = 2             # a job missing from this many successful runs of its feed -> expired
 
+# --- Freshness ---------------------------------------------------------------------------
+MAX_JOB_AGE_DAYS = 60              # jobs whose posted_date is older are ignored (per-feed override)
+WINDOW_FEED_STALE_DAYS = 21        # "latest N" feeds: expire when not seen for this many days
+
 # --- Storage size control (the DB and jobs.json are committed to git) --------------
 DESCRIPTION_MAX_CHARS = 1500       # stored description is cut to this; skill matching uses the full text
 EXPORT_SNIPPET_CHARS = 220         # description snippet written to jobs.json
