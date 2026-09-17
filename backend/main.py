@@ -23,6 +23,7 @@ from pathlib import Path
 from db.db import DB_PATH, connect, count_jobs, init_db, last_success_at, log_run, upsert_jobs
 from db.models import utc_now_iso
 from expiry import checker as expiry
+from exporter import export_json
 from filters import skill_matcher
 from notifier import telegram
 from scrapers.base import Feed, PartialResult
@@ -182,6 +183,12 @@ def main(argv=None) -> int:
             telegram.send_bootstrap_summary(n)
     elif not args.no_notify:
         telegram.notify_new_jobs(conn)
+
+    if not args.no_export:
+        try:
+            export_json.export(conn)
+        except Exception:
+            log.exception("Export to jobs.json failed")
 
     conn.close()
     log.info("Run %s finished", run_id)

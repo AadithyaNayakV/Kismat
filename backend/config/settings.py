@@ -15,7 +15,7 @@ WINDOW_FEED_STALE_DAYS = 21        # "latest N" feeds: expire when not seen for 
 
 # --- Storage size control (the DB and jobs.json are committed to git) --------------
 DESCRIPTION_MAX_CHARS = 800        # stored description is cut to this; skill matching uses the full text
-EXPORT_SNIPPET_CHARS = 220         # description snippet written to jobs.json
+EXPORT_SNIPPET_CHARS = 160         # description snippet written to jobs.json
 EXPORT_EXPIRED_DAYS = 60           # expired jobs older than this (by last_seen_at) are left out of jobs.json
 
 # --- Telegram -------------------------------------------------------------------------

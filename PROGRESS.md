@@ -297,6 +297,31 @@ frontend/   Static website (index.html, style.css, app.js, jobs.json written by 
   returns the same jobs. Its `Crawl-delay: 3` is honoured.
 - All three are "latest N" feeds, so they use the 21-day staleness expiry rule.
 
+## Step 9 — jobs.json exporter
+
+**Built**
+- `backend/exporter/export_json.py` writes `frontend/jobs.json` at the end of every run
+  (skip with `--no-export`; run alone with `python -m exporter.export_json`).
+  The file contains `generated_at`, `counts`, `my_skills`, `all_skills`, a
+  **`sources` health list** (per source: number of feeds, how many were OK or failed in their latest
+  run, last run time, active jobs, error messages), and `jobs`. The exact field list is in
+  the module docstring.
+- Verified: 10,751 jobs → 5.4 MB (≈1.1 MB gzipped; GitHub Pages serves gzip).
+
+**Decisions not in the original plan**
+- **What's exported:** all active jobs plus expired jobs last seen within
+  60 days (`EXPORT_EXPIRED_DAYS`). The DB still keeps everything forever, but this keeps the
+  website file from growing without limit.
+- **Size trimming:** a description *snippet* only (160 chars), `first_seen` as a date,
+  `last_seen` only for expired jobs, and empty fields are left out. `job_type` and `skills`
+  are JSON arrays.
+- **One job per line**, sorted newest first, so each commit's diff is small and git
+  compresses it well.
+- **Atomic write** (temp file + rename), so a crash can't leave half a file.
+- **Skill filter values = your `MY_SKILLS`** (tags are only computed for your skills, as
+  in the plan). Free-text search on the website covers everything else.
+- An export failure is logged but doesn't fail the run (the DB is already saved).
+
 <!-- NEXT-STEP -->
 
 ---
@@ -315,8 +340,8 @@ _Updated after every step. ✅ done · 🔄 in progress · ⏳ not started._
 | 6 | Expiry logic | ✅ |
 | 7 | India boards (Internshala, Shine, Freshersworld, Naukri, Foundit) | ✅ (Naukri untested, Foundit blocked) |
 | 8 | RSS feeds (WeWorkRemotely, Jobspresso, Working Nomads) | ✅ (Working Nomads via its JSON feed) |
-| 9 | `jobs.json` exporter | 🔄 |
-| 10 | Website (`frontend/`) | ⏳ |
+| 9 | `jobs.json` exporter | ✅ |
+| 10 | Website (`frontend/`) | 🔄 |
 | 11 | GitHub Actions workflow | ⏳ |
 | 12 | Final review + README | ⏳ |
 
