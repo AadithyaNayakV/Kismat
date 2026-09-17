@@ -129,6 +129,47 @@ frontend/   Static website (index.html, style.css, app.js, jobs.json written by 
 - The plan's optional sources Reed, Careerjet and USAJobs were **not** built (the
   build prompt didn't list them). `ApiPuller` makes each one roughly a 30-line addition.
 
+## Step 4 — ATS company loop
+
+**Built**
+- `backend/scrapers/ats.py` — **Greenhouse, Lever, Ashby, SmartRecruiters, Breezy HR,
+  Teamtailor**. Each (platform, company) pair becomes its own feed named
+  `platform:slug`, so one dead company only fails itself.
+- `backend/config/companies.py` — a **starter list of 51 company slugs** (20 Greenhouse, 9 Lever,
+  9 Ashby, 5 SmartRecruiters, 4 Breezy, 4 Teamtailor), including Indian employers
+  (Groww, Druva, CRED, Zeta, Paytm, Meesho, Hevo, Mindtickle, FamPay, Freshworks).
+  Every slug was checked live and returned jobs. The file explains how to find and test new slugs.
+- Verified: all 51 feeds OK, **9,067 jobs** in one run (~2 minutes).
+
+**Decisions not in the original plan**
+- **Teamtailor uses the public `https://<company>.teamtailor.com/jobs.rss`** feed.
+  The plan's `/api/v1/jobs` endpoint needs a per-company API key, so it can't be used
+  for companies you don't control. Regional hosts (e.g. `acme.na.teamtailor.com`) can
+  be listed as full hostnames.
+- **SmartRecruiters** is paginated (100 per page, max 10 pages). A board larger than that
+  is saved but flagged partial, so its jobs are not expired by disappearance.
+  Its listing endpoint has no descriptions, so skill tags come from title +
+  function/department only (fetching each job's detail would cost one request per job).
+  The same applies to **Breezy**.
+- **Greenhouse** is fetched with `?content=true` (full description for skill
+  matching). Its `application_deadline` field becomes `deadline`.
+- **ATS feeds are marked `complete=True`** (the board lists every open job), which is
+  what makes disappearance-based expiry reliable for them (Step 6). They also opt out
+  of the 60-day max-age filter, because ATS roles often stay open for months.
+- **Very large boards were left out** (Databricks ~880, Bosch ~4,800 jobs). The LinkedIn
+  careers board on SmartRecruiters was excluded to stay clear of anything LinkedIn.
+- **Stored description cap lowered to 800 chars.** The website only shows a 220-char
+  snippet and Telegram shows none, so the stored text is only used when tags are
+  recomputed after you edit your skill list.
+- **Git growth measured:** committing the updated DB after a full run added ~136 KB
+  to the packed repo. At 12 runs/day that is roughly **0.6 GB/year**, which is fine for
+  the 1–3 year horizon (GitHub recommends repos stay under a few GB).
+  If it ever becomes a problem, the fix is to commit `jobs.db` to a separate
+  single-commit `data` branch (force-pushed) instead of `main`. This is not done now
+  because the plan asks for the DB to be committed alongside the code.
+- `lever` and `ashby` responses don't include the company's display name, so the name
+  is derived from the slug (`hevodata` → `Hevodata`).
+
 <!-- NEXT-STEP -->
 
 ---
