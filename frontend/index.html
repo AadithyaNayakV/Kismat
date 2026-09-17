@@ -1,3 +1,130 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Job Board</title></head>
-<body><p>Website coming in Step 10.</p></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Job Radar</title>
+  <meta name="description" content="Fresh jobs from dozens of sources, filtered by skill, updated every 2 hours.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">📡</span>
+        <div>
+          <h1>Job Radar</h1>
+          <p class="updated" id="updated">Loading jobs…</p>
+        </div>
+      </div>
+      <div class="badge" id="count-badge" aria-live="polite">–</div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="controls" aria-label="Search and filters">
+      <div class="search-row">
+        <label class="search">
+          <span class="visually-hidden">Search title or company</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.2 4.2-1.4 1.4-4.2-4.2A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
+          <input id="q" type="search" placeholder="Search title or company…" autocomplete="off">
+        </label>
+        <div class="segmented" role="group" aria-label="Time window">
+          <button type="button" data-window="24">New · 24h</button>
+          <button type="button" data-window="48">New · 48h</button>
+          <button type="button" data-window="all">All</button>
+        </div>
+        <button type="button" class="filters-toggle" id="filters-toggle" aria-expanded="false" aria-controls="filters">
+          Filters <span class="filters-count" id="filters-count" hidden></span>
+        </button>
+      </div>
+
+      <div class="filters" id="filters">
+        <div class="filter">
+          <span class="filter-label">Skills</span>
+          <div class="chips" id="skill-chips"></div>
+        </div>
+        <div class="filter">
+          <span class="filter-label">Job type</span>
+          <div class="chips" id="type-chips"></div>
+        </div>
+        <div class="filter-grid">
+          <label class="field">
+            <span class="filter-label">Location</span>
+            <input id="location" type="search" placeholder="e.g. Bangalore, Remote" autocomplete="off">
+          </label>
+          <label class="field">
+            <span class="filter-label">Source</span>
+            <select id="source"><option value="">All sources</option></select>
+          </label>
+          <label class="field">
+            <span class="filter-label">Sort by</span>
+            <select id="sort">
+              <option value="newest">Newest first</option>
+              <option value="deadline">Deadline (soonest)</option>
+            </select>
+          </label>
+          <label class="check">
+            <input id="expired" type="checkbox">
+            <span>Include expired</span>
+          </label>
+        </div>
+        <button type="button" class="link-btn" id="reset">Reset filters</button>
+      </div>
+    </section>
+
+    <p class="result-line" id="result-line" aria-live="polite"></p>
+
+    <section class="grid" id="grid" aria-label="Jobs"></section>
+    <div class="empty" id="empty" hidden>
+      <p class="empty-title">No jobs match these filters.</p>
+      <button type="button" class="link-btn" id="empty-reset">Reset filters</button>
+    </div>
+    <div class="sentinel" id="sentinel" aria-hidden="true"></div>
+
+    <details class="health" id="health">
+      <summary>Source status</summary>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Source</th><th>Active jobs</th><th>Feeds OK</th><th>Last run</th><th>Issues</th></tr></thead>
+          <tbody id="health-body"></tbody>
+        </table>
+      </div>
+    </details>
+  </main>
+
+  <footer class="footer">
+    Jobs come from public APIs, company career pages and job boards; each card links to the original posting.
+    Always apply on the source site.
+  </footer>
+
+  <template id="card-template">
+    <article class="card">
+      <div class="card-head">
+        <div class="card-titles">
+          <h2 class="card-title"></h2>
+          <p class="card-company"></p>
+        </div>
+        <span class="status-pill" hidden>Expired</span>
+      </div>
+      <ul class="meta">
+        <li class="meta-location"></li>
+        <li class="meta-salary"></li>
+      </ul>
+      <div class="pills"></div>
+      <p class="snippet"></p>
+      <div class="card-foot">
+        <div class="dates">
+          <span class="posted"></span>
+          <span class="deadline"></span>
+          <span class="source"></span>
+        </div>
+        <a class="apply" target="_blank" rel="noopener noreferrer">Apply <span aria-hidden="true">↗</span></a>
+      </div>
+    </article>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

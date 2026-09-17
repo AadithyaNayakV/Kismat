@@ -32,6 +32,7 @@ TECH_KEYWORDS = [
     "cto", "programming", "coding", "computer", "hardware", "robotics", "game dev",
     "dev", "developers", "engineers", "c++", "c#", "sql", "typescript", "kotlin", "swift",
     "data science", "data", "software development", "information technology",
+    "sde", "swe", "mern", "mean stack", "ui developer", "ux engineer", "salesforce developer",
 ]
 INTERN_KEYWORDS = ["intern", "internship", "internships", "apprentice", "apprenticeship"]
 REMOTE_KEYWORDS = ["remote", "work from home", "wfh", "anywhere", "distributed"]

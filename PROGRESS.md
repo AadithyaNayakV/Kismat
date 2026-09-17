@@ -322,6 +322,41 @@ frontend/   Static website (index.html, style.css, app.js, jobs.json written by 
   in the plan). Free-text search on the website covers everything else.
 - An export failure is logged but doesn't fail the run (the DB is already saved).
 
+## Step 10 — Website (`frontend/`)
+
+**Built** — plain HTML/CSS/JS, no build step and no dependencies:
+- `frontend/index.html` — page layout plus a `<template>` for job cards.
+- `frontend/style.css` — clean card grid, light and dark themes (follows the system
+  setting), responsive down to phone width (filters collapse behind a "Filters"
+  button, cards become one column, no horizontal scrolling).
+- `frontend/app.js` — loads `jobs.json` once and does everything client-side:
+  - **New · 24h / New · 48h / All** toggle (default: 48h)
+  - **Live search** over title + company (every word must match)
+  - **Skill chips** (multi-select, a job matches if it has *any* selected skill) with counts
+  - **Job type chips**: tech / non-tech are alternatives; internship / remote narrow further
+  - **Location** text search, **Source** dropdown with counts, **Include expired** checkbox
+  - **Sort**: newest first (default) or deadline soonest
+  - Cards show title, company, location, salary, skill + type pills, snippet,
+    posted time, deadline (red within 3 days), source, and an **Apply ↗** button
+  - **Job count badge** ("10,751 active jobs") and "Updated N min ago"
+  - **Source status** panel (collapsible table built from `sources` in jobs.json)
+  - Cards are added 60 at a time as you scroll; the filter state is kept in the URL (shareable,
+    survives reload); press `/` to jump to search
+- Verified in headless Chromium at 1400 px (light) and 390 px (dark): no console errors,
+  filters/search/sort/scrolling/expired view all work, no horizontal overflow.
+
+**Decisions not in the original plan**
+- **Name:** "Job Radar" (change the `<title>`/`<h1>` if you like).
+- **"New"** is based on `posted` (the source's date). When a source gives no date, the
+  first time we saw the job is used instead.
+- Filters are stored in the URL query string rather than localStorage, so a filtered
+  view can be bookmarked.
+- All job text is inserted with `textContent` (no HTML injection), and apply links are
+  restricted to http/https.
+- Opening `index.html` straight from disk can't load `jobs.json` (browser security);
+  use `python -m http.server` inside `frontend/` to preview locally.
+- Small backend fix: "SDE", "SWE", "MERN" now count as tech titles.
+
 <!-- NEXT-STEP -->
 
 ---
@@ -341,8 +376,8 @@ _Updated after every step. ✅ done · 🔄 in progress · ⏳ not started._
 | 7 | India boards (Internshala, Shine, Freshersworld, Naukri, Foundit) | ✅ (Naukri untested, Foundit blocked) |
 | 8 | RSS feeds (WeWorkRemotely, Jobspresso, Working Nomads) | ✅ (Working Nomads via its JSON feed) |
 | 9 | `jobs.json` exporter | ✅ |
-| 10 | Website (`frontend/`) | 🔄 |
-| 11 | GitHub Actions workflow | ⏳ |
+| 10 | Website (`frontend/`) | ✅ |
+| 11 | GitHub Actions workflow | 🔄 |
 | 12 | Final review + README | ⏳ |
 
 **Known limitations / ideas for later** (not required by the build prompt)
