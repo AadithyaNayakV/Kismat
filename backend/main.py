@@ -49,6 +49,20 @@ def setup_logging() -> None:
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
+def load_dotenv() -> None:
+    """Load KEY=VALUE lines from a local .env (repo root or backend/) for local testing.
+    Real environment variables win. In GitHub Actions secrets come from the workflow."""
+    for path in (Path(__file__).resolve().parent / ".env", Path(__file__).resolve().parent.parent / ".env"):
+        if not path.is_file():
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
 def _hours_since(iso: str) -> float:
     return (datetime.now(timezone.utc) - datetime.fromisoformat(iso)).total_seconds() / 3600
 
@@ -139,6 +153,7 @@ def _split(value):
 
 def main(argv=None) -> int:
     args = parse_args(argv)
+    load_dotenv()
     setup_logging()
 
     if args.test_telegram:

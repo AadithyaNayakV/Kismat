@@ -6,7 +6,18 @@ It is written so that someone with zero context (a person or another AI tool) ca
 pick the project up. The manual setup checklist is collected in one place at the
 bottom.
 
-Repo layout (see [README.md](README.md) for how to run things):
+**Documentation map**
+
+| File | Read it for |
+|---|---|
+| [README.md](README.md) | What this is, layout, quick start, everyday changes |
+| [SETUP.md](SETUP.md) | Detailed one-time setup (GitHub, Telegram, keys, Pages, testing) |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | How it works inside: pipeline, data model, expiry, extension recipes, config reference |
+| [AGENTS.md](AGENTS.md) | Rules and commands for AI coding tools working on this repo |
+| **PROGRESS.md** (this file) | What was built in each step, every decision, status, limitations, setup checklist |
+| [job-notifier-project-plan.md](job-notifier-project-plan.md) | The original plan |
+
+Repo layout:
 
 ```
 backend/    Python pipeline (scrapers, DB, filters, expiry, notifier, exporter, config, main.py)
@@ -394,71 +405,83 @@ frontend/   Static website (index.html, style.css, app.js, jobs.json written by 
   60 days. The bot's own commits normally count as activity; if the schedule ever shows
   as disabled, re-enable it in the Actions tab.
 
-<!-- NEXT-STEP -->
+## Step 12 — Final review & documentation
+
+**Built**
+- **Docs:** `README.md` (overview, layout, quick start, everyday edits, debugging),
+  `SETUP.md` (step-by-step setup + troubleshooting), `ARCHITECTURE.md` (internals,
+  data model, source catalogue, extension recipes, config reference), `AGENTS.md`
+  (handoff guide for AI coding tools), and this file. The plan file points to all of them.
+- `.env.example` plus a small `.env` loader in `main.py` for local testing (real env
+  vars take precedence; `.env` is git-ignored).
+- **Independent review:** two review agents checked the backend and the
+  frontend/workflows for bugs; a third agent wrote ARCHITECTURE.md and AGENTS.md from the code.
+  Fixes are listed below.
+
+<!-- REVIEW-FIXES -->
 
 ---
 
-## Remaining work / status board
+## Status board
 
-_Updated after every step. ✅ done · 🔄 in progress · ⏳ not started._
+_✅ done · ⚠️ done with caveats · ⏳ not started._
 
 | # | Step | Status |
 |---|---|---|
 | 1 | Repo scaffold + DB schema | ✅ |
 | 2 | RemoteOK → DB → Telegram pipeline | ✅ |
-| 3 | Remaining free APIs (ApiPuller) | ✅ |
+| 3 | Remaining free APIs (ApiPuller) | ✅ (Jooble/Adzuna/Findwork need your keys) |
 | 4 | ATS company loop + 51 slugs | ✅ |
-| 5 | Skill filtering | ✅ |
+| 5 | Skill filtering | ✅ (replace the starter `MY_SKILLS`) |
 | 6 | Expiry logic | ✅ |
-| 7 | India boards (Internshala, Shine, Freshersworld, Naukri, Foundit) | ✅ (Naukri untested, Foundit blocked) |
-| 8 | RSS feeds (WeWorkRemotely, Jobspresso, Working Nomads) | ✅ (Working Nomads via its JSON feed) |
+| 7 | India boards | ⚠️ Internshala/Shine/Freshersworld ✅ · Naukri untested · Foundit blocked by the site |
+| 8 | RSS feeds | ✅ (Working Nomads via its JSON feed) |
 | 9 | `jobs.json` exporter | ✅ |
-| 10 | Website (`frontend/`) | ✅ |
-| 11 | GitHub Actions workflow | ✅ |
-| 12 | Final review + README | 🔄 |
+| 10 | Website | ✅ |
+| 11 | GitHub Actions | ✅ written and simulated locally; first real run happens after you push |
+| 12 | Final review + docs | ✅ |
 
 **Known limitations / ideas for later** (not required by the build prompt)
-- Naukri needs a real-world check on GitHub Actions; Foundit is blocked by bot protection.
-- Sources in the plan that were not built: Reed, Careerjet, USAJobs (APIs); Indeed
-  India, TimesJobs, Hirist, CutShort, Instahyre, FreeJobAlert, Sarkari Result
-  (scraping); Workday, Recruitee, BambooHR, JazzHR (ATS).
-- Plan phase 2: resume matching with `sentence-transformers`, Telegram bot commands
+- **Naukri** needs a real-world check on GitHub Actions. **Foundit** is blocked by bot
+  protection (the feed fails cleanly each run; remove it from `india_boards.feeds()` if
+  the error line bothers you).
+- **Not built** from the plan's wider list: Reed, Careerjet, USAJobs (APIs); Indeed India,
+  TimesJobs, Hirist, CutShort, Instahyre, FreeJobAlert, Sarkari Result (scraping);
+  Workday, Recruitee, BambooHR, JazzHR (ATS).
+- **Plan phase 2:** resume matching with `sentence-transformers`, Telegram bot commands
   (`/latest`, `/skills`), trend analytics.
-- SmartRecruiters/Breezy listings have no description, so skill tags there come from
-  the title only.
+- SmartRecruiters/Breezy listings have no description, so their skill tags come from the title only.
+- Internshala deadlines ("Apply by") appear only on detail pages and aren't fetched.
+- Repo growth from committing `jobs.db` is ~0.6 GB/year (measured). Step 4 describes the
+  fix if it ever matters.
+- There is no automated test suite yet; checks were done with ad-hoc scripts
+  (documented in each step).
 
 ---
 
 ## Manual setup checklist (things only you can do)
 
-_Kept up to date as steps are completed._
+Full instructions for each item are in [SETUP.md](SETUP.md).
 
-### Telegram bot (required for alerts)
-1. In Telegram, open **@BotFather** → send `/newbot` → pick a name and a username
-   ending in `bot`. BotFather replies with a **token** like `123456:ABC-...`.
-2. Open a chat with your new bot and send it any message (e.g. "hi").
-3. In a browser open `https://api.telegram.org/bot<TOKEN>/getUpdates` (paste your
-   token after `bot`). Find `"chat":{"id": 123456789 ...}` — that number is your
-   **chat ID**. (For a group: add the bot to the group, send a message, and the ID will be
-   negative, e.g. `-100...`.)
-4. Add both as GitHub Secrets (see "GitHub Secrets" below): `TELEGRAM_TOKEN`,
-   `TELEGRAM_CHAT_ID`.
-5. To test locally (PowerShell, from `backend/`):
-   ```powershell
-   $env:TELEGRAM_TOKEN = "123456:ABC-..."
-   $env:TELEGRAM_CHAT_ID = "123456789"
-   python main.py --test-telegram
-   ```
-   Never commit the token. `.env` files are git-ignored if you prefer to keep them in one.
+**Required**
+- [ ] Create a **public** GitHub repo and push: `git remote add origin <url>` → `git push -u origin main` (SETUP §1)
+- [ ] Create the Telegram bot with @BotFather, message it once, get your chat ID (SETUP §2)
+- [ ] Add secrets `TELEGRAM_TOKEN` and `TELEGRAM_CHAT_ID` (SETUP §4)
+- [ ] Settings → Pages → Source: **GitHub Actions** (SETUP §5)
+- [ ] Settings → Actions → General → Workflow permissions: **Read and write** (SETUP §5)
+- [ ] Run **Deploy website** manually, then open `https://<user>.github.io/<repo>/` (SETUP §6)
+- [ ] Run **Job Scraper** manually with `remoteok`, then a full run; read the summary table (SETUP §6)
+- [ ] Replace the starter skills in `backend/filters/skills_config.py` with your own (SETUP §7)
 
-### Free API keys (optional — each source is skipped until its key exists)
-None of these ask for a credit card.
-- **Adzuna** — sign up at <https://developer.adzuna.com/> → "Dashboard" shows an
-  **Application ID** and **Application Key** → secrets `ADZUNA_APP_ID`, `ADZUNA_APP_KEY`.
-  Optional variable `ADZUNA_COUNTRY` (default `in`).
-- **Jooble** — request a key at <https://jooble.org/api/about> (form; the key is
-  emailed) → secret `JOOBLE_KEY`.
-- **Findwork** — create an account at <https://findwork.dev/> and copy the API token
-  from <https://findwork.dev/developers/> → secret `FINDWORK_TOKEN`.
-- **The Muse** (optional, works without) — <https://www.themuse.com/developers/api/v2>
-  → secret `MUSE_API_KEY`.
+**Optional**
+- [ ] Adzuna keys → `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` (<https://developer.adzuna.com/>)
+- [ ] Jooble key → `JOOBLE_KEY` (<https://jooble.org/api/about>)
+- [ ] Findwork token → `FINDWORK_TOKEN` (<https://findwork.dev/developers/>)
+- [ ] The Muse key → `MUSE_API_KEY` (only raises its rate limit)
+- [ ] Repo variables: `SITE_URL` (your Pages URL), `ADZUNA_COUNTRY` (default `in`), `JOOBLE_LOCATION` (default `India`)
+- [ ] Add companies you care about to `backend/config/companies.py`; adjust search terms in `backend/config/settings.py`
+- [ ] After the first scheduled runs, check the **naukri** and **foundit** lines in the run summary
+
+**Local testing (optional)**
+- [ ] `cd backend && pip install -r requirements.txt && python -m playwright install chromium`
+- [ ] Copy `.env.example` → `.env` and fill in values, then `python main.py --test-telegram`

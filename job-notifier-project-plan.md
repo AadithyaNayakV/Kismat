@@ -1,6 +1,6 @@
 # Job Notifier & Aggregator — Complete Project Plan
 
-> **Build status:** this plan is being implemented. See [PROGRESS.md](PROGRESS.md) for what has been built, every decision that differs from or extends this plan, and the manual setup checklist. The repo is split into `backend/` (Python) and `frontend/` (the static site that §10 calls `docs/`).
+> **Build status:** this plan has been implemented. Start with [README.md](README.md). [SETUP.md](SETUP.md) covers one-time setup, [ARCHITECTURE.md](ARCHITECTURE.md) explains how it works, and [PROGRESS.md](PROGRESS.md) has the step-by-step build log, every decision that differs from or extends this plan, known limitations, and the setup checklist. [AGENTS.md](AGENTS.md) is for AI coding tools. The repo is split into `backend/` (Python) and `frontend/` (the static site that §10 calls `docs/`).
 
 A fully free, self-running system that scrapes jobs from many sources, filters them by your skills, sends Telegram alerts, auto-removes expired listings, and shows everything (new + old) on a website with filters.
 
