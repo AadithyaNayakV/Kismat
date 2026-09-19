@@ -69,7 +69,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: run-log-${{ github.run_id }}
+          name: run-log-${{ github.run_id }}-${{ github.run_attempt }}
           path: backend/logs/run.log
           retention-days: 7
           if-no-files-found: ignore
@@ -87,8 +87,17 @@ jobs:
           git commit -m "Auto-update jobs $(date -u '+%Y-%m-%d %H:%M UTC')"
           # Someone may have pushed code meanwhile: rebase and retry a few times.
           for i in 1 2 3; do
-            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push && exit 0
+            if git pull --rebase origin "${GITHUB_REF_NAME}" && git push; then exit 0; fi
             echo "Push failed (attempt $i), retrying..."
+            # A conflict on the data files leaves git mid-rebase: abort, then keep this
+            # run's data on top of the latest remote commit.
+            git rebase --abort 2>/dev/null || true
+            git fetch origin "${GITHUB_REF_NAME}"
+            cp backend/db/jobs.db /tmp/jobs.db && cp frontend/jobs.json /tmp/jobs.json
+            git reset --hard "origin/${GITHUB_REF_NAME}"
+            cp /tmp/jobs.db backend/db/jobs.db && cp /tmp/jobs.json frontend/jobs.json
+            git add backend/db/jobs.db frontend/jobs.json
+            git commit -m "Auto-update jobs $(date -u '+%Y-%m-%d %H:%M UTC')" || exit 0
             sleep $((i * 5))
           done
           exit 1

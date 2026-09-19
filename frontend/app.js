@@ -42,8 +42,11 @@
   }
 
   function fmtDate(iso) {
-    const d = new Date(iso + (iso.length === 10 ? "T00:00:00Z" : ""));
-    return isNaN(d) ? iso : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    const dateOnly = iso.length === 10;
+    const d = new Date(iso + (dateOnly ? "T00:00:00Z" : ""));
+    const opts = { day: "numeric", month: "short", year: "numeric" };
+    if (dateOnly) opts.timeZone = "UTC"; // a calendar date must not shift with the viewer's timezone
+    return isNaN(d) ? iso : d.toLocaleDateString("en-IN", opts);
   }
 
   function safeUrl(url) {
@@ -118,7 +121,9 @@
     buildControls();
     renderHealth();
     const gen = Date.parse(data.generated_at);
-    el.updated.textContent = gen ? `Updated ${relTime(gen)} · refreshes every 2 hours` : "";
+    const showUpdated = () => { el.updated.textContent = gen ? `Updated ${relTime(gen)} · refreshes every 2 hours` : ""; };
+    showUpdated();
+    setInterval(showUpdated, 60000);
     el.updated.title = data.generated_at || "";
     apply();
   }
@@ -173,13 +178,17 @@
         (v, on) => { toggleIn(state.types, v, on); apply(); })));
 
     const sources = new Map();
-    active.forEach((j) => sources.set(j.source, (sources.get(j.source) || 0) + 1));
+    jobs.forEach((j) => sources.set(j.source, (sources.get(j.source) || 0) + (j.status === "active" ? 1 : 0)));
     [...sources.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([name, n]) => {
       const o = document.createElement("option");
       o.value = name;
       o.textContent = `${name} (${fmtNum(n)})`;
       el.source.append(o);
     });
+
+    // Drop values from an old/shared link that no control can show, so no filter is invisible.
+    if (state.source && !sources.has(state.source)) state.source = "";
+    state.skills = state.skills.filter((s) => skills.includes(s));
 
     el.q.value = state.q;
     el.location.value = state.loc;
