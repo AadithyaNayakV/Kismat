@@ -192,6 +192,7 @@ def main(argv=None) -> int:
     succeeded = [r["feed"] for r in results
                  if r["feed"] in complete and not r["skipped"] and not r["error"] and r["found"] > 0]
     expiry.run(conn, succeeded)
+    expiry.prune(conn)
 
     if was_empty and count_jobs(conn) > 0:
         # First ever run: load everything silently instead of sending thousands of alerts.

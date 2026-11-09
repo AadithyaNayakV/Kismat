@@ -16,6 +16,9 @@ WINDOW_FEED_STALE_DAYS = 21        # "latest N" feeds: expire when not seen for 
 # --- Storage size control (the DB and jobs.json are committed to git) --------------
 DESCRIPTION_MAX_CHARS = 800        # stored description is cut to this; skill matching uses the full text
 EXPORT_SNIPPET_CHARS = 160         # description snippet written to jobs.json
+PRUNE_EXPIRED_DAYS = 30            # expired jobs not seen for this long are deleted from jobs.db
+PRUNE_RUNS_DAYS = 14               # scrape_runs rows older than this are deleted
+DB_MAX_MB = 80                     # GitHub rejects files > 100 MB; retention is tightened until jobs.db fits
 EXPORT_EXPIRED_DAYS = 60           # expired jobs older than this (by last_seen_at) are left out of jobs.json
 
 # --- Telegram -------------------------------------------------------------------------

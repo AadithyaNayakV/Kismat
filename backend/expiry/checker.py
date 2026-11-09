@@ -1,4 +1,4 @@
-"""Expiry checker (plan §5). Jobs are never deleted, only flagged status='expired'.
+"""Expiry checker (plan §5). Jobs are flagged status='expired'; prune() later deletes old ones.
 
 Three rules, run after every scrape:
 
@@ -22,6 +22,7 @@ deadline has passed, in which case rule A expires it again on the same run).
 from __future__ import annotations
 
 import logging
+import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from typing import Iterable
@@ -94,3 +95,38 @@ def run(conn: sqlite3.Connection, successful_complete_feeds: Iterable[str]) -> d
     log.info("Expiry: %d by deadline, %d disappeared, %d stale | now %d active, %d expired",
              counts["deadline"], counts["disappeared"], counts["stale"], active, expired)
     return counts
+
+
+def _db_size_mb(conn: sqlite3.Connection) -> float:
+    path = conn.execute("PRAGMA database_list").fetchone()[2]
+    return os.path.getsize(path) / (1024 * 1024) if path else 0.0
+
+
+def prune(conn: sqlite3.Connection, keep_days: int = settings.PRUNE_EXPIRED_DAYS,
+          max_mb: float = settings.DB_MAX_MB) -> int:
+    """Delete long-expired jobs and old run logs, then VACUUM so the file really shrinks.
+
+    jobs.db is committed to git and GitHub rejects files over 100 MB. If it is still
+    larger than max_mb, retention is halved until it fits (expired jobs only, never active).
+    """
+    now = datetime.now(timezone.utc)
+    removed = 0
+    runs_cutoff = (now - timedelta(days=settings.PRUNE_RUNS_DAYS)).replace(microsecond=0).isoformat()
+    with conn:
+        conn.execute("DELETE FROM scrape_runs WHERE started_at < ?", (runs_cutoff,))
+    days = keep_days
+    while True:
+        cutoff = (now - timedelta(days=days)).replace(microsecond=0).isoformat()
+        with conn:
+            removed += conn.execute(
+                "DELETE FROM jobs WHERE status = 'expired' AND last_seen_at < ?", (cutoff,)
+            ).rowcount
+        conn.execute("VACUUM")
+        size = _db_size_mb(conn)
+        if size <= max_mb or days == 0:
+            break
+        days //= 2
+    log.info("Prune: removed %d expired jobs (keep %dd), jobs.db is %.1f MB", removed, days, size)
+    if size > max_mb:
+        log.warning("jobs.db is %.1f MB, still over the %s MB limit", size, max_mb)
+    return removed
