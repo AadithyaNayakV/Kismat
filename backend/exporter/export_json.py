@@ -18,8 +18,8 @@ File shape:
   ]
 }
 
-Included: all active jobs + expired jobs last seen within EXPORT_EXPIRED_DAYS.
-The DB itself keeps everything forever.
+Included: active jobs only. Expired jobs (deadline passed or no longer listed) are left out,
+so they vanish from the site on the next run. The DB keeps them for a while (see expiry.prune).
 
 One job per line keeps git diffs (and repo growth) small, since the file is
 committed after every run.
@@ -32,7 +32,6 @@ import json
 import logging
 import os
 import sqlite3
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from config import settings
@@ -50,17 +49,15 @@ def _split(value: str | None) -> list[str]:
 
 
 def _job_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=settings.EXPORT_EXPIRED_DAYS)).isoformat()
     return conn.execute(
         """
         SELECT job_id, title, company, location, job_type, skills_tags, salary,
                posted_date, deadline, apply_link, source, status, scraped_at,
                last_seen_at, description
         FROM jobs
-        WHERE status = 'active' OR last_seen_at >= ?
+        WHERE status = 'active'
         ORDER BY COALESCE(posted_date, scraped_at) DESC, job_id
         """,
-        (cutoff,),
     ).fetchall()
 
 
